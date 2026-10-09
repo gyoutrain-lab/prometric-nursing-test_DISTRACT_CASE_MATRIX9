@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SCFHS & NCLEX Clinical Mastery Simulator</title>
+  <title>SCFHS Advanced Clinical Matrix Mastery Game</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
   <style>
     .glass-card {
-      background: rgba(15, 23, 42, 0.88);
+      background: rgba(15, 23, 42, 0.90);
       backdrop-filter: blur(16px);
       border: 1px solid rgba(255, 255, 255, 0.12);
     }
@@ -21,42 +22,64 @@
       background: rgba(20, 184, 166, 0.4);
       border-radius: 3px;
     }
-    .grid-cell {
-      transition: all 0.2s ease-in-out;
+    .slot-active {
+      border-color: #38bdf8 !important;
+      background: rgba(56, 189, 248, 0.15) !important;
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
     }
-    .grid-cell:hover {
-      transform: translateY(-2px);
+    .slot-filled {
+      border-color: #2dd4bf !important;
+      background: rgba(45, 212, 191, 0.1) !important;
+    }
+    /* Screen Shake for Failure */
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-10px); }
+      40%, 80% { transform: translateX(10px); }
+    }
+    .shake-screen {
+      animation: shake 0.4s ease-in-out;
+    }
+    /* Red Flash Overlay for Wrong Answer */
+    .red-flash {
+      box-shadow: inset 0 0 100px rgba(244, 63, 94, 0.6);
+      transition: box-shadow 0.1s ease-in-out;
     }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col items-center justify-between p-3 md:p-6 font-sans selection:bg-teal-500 selection:text-slate-900 custom-scrollbar">
+<body id="app-body" class="bg-slate-950 text-slate-100 min-h-screen flex flex-col items-center justify-between p-3 md:p-6 font-sans selection:bg-teal-500 selection:text-slate-900 custom-scrollbar transition-all duration-300">
 
   <!-- Header & Navigation -->
-  <header class="w-full max-w-6xl glass-card rounded-2xl p-4 mb-4 flex flex-col md:flex-row justify-between items-center gap-4 border-b border-teal-500/30 shadow-2xl">
+  <header class="w-full max-w-6xl glass-card rounded-2xl p-4 mb-4 flex flex-col md:flex-row justify-between items-center gap-4 border-b border-teal-500/30 shadow-2xl relative">
     <div>
       <div class="flex items-center gap-2">
-        <span class="bg-teal-500/20 text-teal-300 text-xs font-bold px-2.5 py-0.5 rounded-full border border-teal-500/40">SCFHS Prometric & NCLEX-RN</span>
+        <span class="bg-teal-500/20 text-teal-300 text-xs font-bold px-2.5 py-0.5 rounded-full border border-teal-500/40">SCFHS Prometric & NCLEX-RN Standard</span>
         <h1 class="text-xl md:text-2xl font-black bg-gradient-to-r from-teal-400 via-emerald-300 to-amber-300 bg-clip-text text-transparent">
-          Clinical Mastery Simulator
+          Clinical Matrix Simulator
         </h1>
       </div>
-      <p class="text-xs text-slate-400 mt-0.5">50 High-Yield Clinical Cases: Symptoms, Nursing Care, & Medication Principles</p>
+      <p class="text-xs text-slate-400 mt-0.5">Penilaian Skor Dinamis: Serius, Presisi, & Menguji Penalaran Klinis</p>
     </div>
     
     <!-- Game Mode Selectors -->
     <div class="flex bg-slate-900/90 p-1 rounded-xl border border-slate-800 text-xs font-semibold shadow-inner">
-      <button id="mode-matrix-btn" onclick="switchMode('matrix')" class="px-3 py-1.5 rounded-lg text-teal-400 bg-slate-800 transition">Clinical Matrix</button>
+      <button id="mode-matrix-btn" onclick="switchMode('matrix')" class="px-3 py-1.5 rounded-lg text-teal-400 bg-slate-800 transition">Interactive Matrix</button>
       <button id="mode-speed-btn" onclick="switchMode('speed')" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Dual Match</button>
       <button id="mode-flag-btn" onclick="switchMode('flag')" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Safety Override</button>
     </div>
 
-    <!-- Score & Timer -->
-    <div class="flex items-center gap-3">
-      <div id="timer-display" class="bg-amber-500/10 border border-amber-500/30 text-amber-400 font-mono text-sm px-3 py-1.5 rounded-lg font-bold">
-        ⏱️ 45s
+    <!-- Timer & Big Score Display in Corner -->
+    <div class="flex items-center gap-4">
+      <div id="timer-display" class="bg-amber-500/10 border border-amber-500/30 text-amber-400 font-mono text-sm px-3 py-2 rounded-xl font-bold">
+        ⏱️ 60s
       </div>
-      <div id="score-display" class="bg-teal-500/10 border border-teal-500/30 text-teal-400 font-mono text-sm px-3 py-1.5 rounded-lg font-bold">
-        Score: 0
+
+      <!-- BIG SCORE BOX WITH TARGET PLANNING -->
+      <div class="bg-slate-900/90 border border-teal-500/40 px-4 py-2 rounded-xl text-right shadow-lg relative min-w-[140px]">
+        <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Nilai Saat Ini</div>
+        <div id="score-display" class="text-2xl md:text-3xl font-black font-mono text-teal-300">0</div>
+        <div id="target-score-display" class="text-[9px] text-amber-400/90 font-mono font-semibold">Target: 12,500 pts</div>
+        <div id="score-float" class="absolute -bottom-5 right-2 text-xs font-bold font-mono opacity-0 transition-all duration-500"></div>
       </div>
     </div>
   </header>
@@ -64,91 +87,93 @@
   <!-- Game Arena -->
   <main class="w-full max-w-6xl flex-1 flex flex-col justify-center">
 
-    <!-- MODE 1: 4-DOMAIN CLINICAL MATRIX CHALLENGE -->
+    <!-- MODE 1: THINKING CLINICAL MATRIX -->
     <section id="game-mode-matrix" class="glass-card rounded-2xl p-4 md:p-6 shadow-2xl relative overflow-hidden">
-      <div class="flex justify-between items-center mb-4">
+      <div class="flex justify-between items-center mb-3">
         <span class="text-xs font-bold uppercase tracking-wider text-teal-400 bg-teal-500/10 px-2.5 py-1 rounded-full border border-teal-500/20">
-          Mode 1: Assign Clinical Components to Matrix Slots
+          Langkah 1: Pilih Slot Tujuan → Langkah 2: Isikan Data Klinis Yang Tepat
         </span>
-        <span id="matrix-set-counter" class="text-xs text-slate-400 font-mono">Case 1 / 50</span>
+        <span id="matrix-set-counter" class="text-xs text-slate-400 font-mono">Kasus 1 / 50</span>
       </div>
 
-      <!-- Clinical Presentation Vignette -->
+      <!-- Vignette Header -->
       <div class="bg-slate-900/90 rounded-xl p-4 mb-4 border border-slate-800 shadow-inner">
         <div class="flex justify-between items-start mb-1">
-          <span class="text-xs text-amber-400 font-bold uppercase tracking-wider">Clinical Scenario / Case Diagnosis:</span>
+          <span class="text-xs text-amber-400 font-bold uppercase tracking-wider">Kasus Klinis (Vignette):</span>
           <span id="matrix-category" class="text-[10px] uppercase font-bold bg-slate-800 text-teal-300 px-2 py-0.5 rounded border border-slate-700">Diagnosis</span>
         </div>
         <h2 id="matrix-title" class="text-lg font-bold text-teal-300 mb-1">Loading...</h2>
-        <p id="matrix-scenario-text" class="text-xs md:text-sm text-slate-200 leading-relaxed font-mono bg-slate-950/80 p-3 rounded-lg border border-slate-800">Loading symptoms...</p>
+        <p id="matrix-symptoms" class="text-xs md:text-sm text-slate-200 leading-relaxed font-mono bg-slate-950/80 p-3 rounded-lg border border-slate-800">Loading symptoms...</p>
       </div>
 
-      <!-- Matrix Grid Columns (Symptoms/Signs, Nursing Care, Medication & Dose, Safety Principle) -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-        <!-- Slot A: Symptoms / Signs -->
-        <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-800">
-          <div class="text-xs font-bold text-teal-400 mb-2 uppercase flex items-center gap-1">
-            <span class="w-2 h-2 rounded-full bg-teal-400"></span> 1. Key Manifestation
+      <!-- Target Matrix Slots -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+        <!-- Slot 1: Priority Nursing Care -->
+        <div id="slot-container-tx" onclick="selectActiveSlot('tx')" class="cursor-pointer bg-slate-900/80 p-3 rounded-xl border border-slate-700 transition hover:border-sky-400">
+          <div class="flex justify-between items-center mb-1">
+            <span class="text-xs font-bold text-sky-400 uppercase">1. Priority Nursing Care</span>
+            <span id="badge-tx" class="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded">Kosong</span>
           </div>
-          <div id="domain-a-slot" class="min-h-[85px] bg-slate-950/70 rounded-lg p-2.5 border border-dashed border-slate-700 flex items-center justify-center text-xs text-slate-500 text-center">
-            Select matching option
-          </div>
-        </div>
-
-        <!-- Slot B: Priority Nursing Care -->
-        <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-800">
-          <div class="text-xs font-bold text-emerald-400 mb-2 uppercase flex items-center gap-1">
-            <span class="w-2 h-2 rounded-full bg-emerald-400"></span> 2. Nursing Intervention
-          </div>
-          <div id="domain-b-slot" class="min-h-[85px] bg-slate-950/70 rounded-lg p-2.5 border border-dashed border-slate-700 flex items-center justify-center text-xs text-slate-500 text-center">
-            Select matching option
+          <div id="slot-text-tx" class="min-h-[70px] bg-slate-950/80 rounded-lg p-2.5 border border-dashed border-slate-700 text-xs text-slate-400 flex items-center justify-center text-center italic">
+            Klik di sini, lalu pilih tindakan keperawatan yang cocok di bawah
           </div>
         </div>
 
-        <!-- Slot C: Pharmacotherapy & Dose -->
-        <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-800">
-          <div class="text-xs font-bold text-amber-400 mb-2 uppercase flex items-center gap-1">
-            <span class="w-2 h-2 rounded-full bg-amber-400"></span> 3. Drug, Dose & Route
+        <!-- Slot 2: Pharmacotherapy & Dosing -->
+        <div id="slot-container-drug" onclick="selectActiveSlot('drug')" class="cursor-pointer bg-slate-900/80 p-3 rounded-xl border border-slate-700 transition hover:border-emerald-400">
+          <div class="flex justify-between items-center mb-1">
+            <span class="text-xs font-bold text-emerald-400 uppercase">2. Medication & Dosing</span>
+            <span id="badge-drug" class="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded">Kosong</span>
           </div>
-          <div id="domain-c-slot" class="min-h-[85px] bg-slate-950/70 rounded-lg p-2.5 border border-dashed border-slate-700 flex items-center justify-center text-xs text-slate-500 text-center">
-            Select matching option
+          <div id="slot-text-drug" class="min-h-[70px] bg-slate-950/80 rounded-lg p-2.5 border border-dashed border-slate-700 text-xs text-slate-400 flex items-center justify-center text-center italic">
+            Klik di sini, lalu pilih obat & dosis yang cocok di bawah
           </div>
         </div>
 
-        <!-- Slot D: Safety Principle -->
-        <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-800">
-          <div class="text-xs font-bold text-indigo-400 mb-2 uppercase flex items-center gap-1">
-            <span class="w-2 h-2 rounded-full bg-indigo-400"></span> 4. Critical Safety Rule
+        <!-- Slot 3: Safety Principle & Rationale -->
+        <div id="slot-container-rule" onclick="selectActiveSlot('rule')" class="cursor-pointer bg-slate-900/80 p-3 rounded-xl border border-slate-700 transition hover:border-amber-400">
+          <div class="flex justify-between items-center mb-1">
+            <span class="text-xs font-bold text-amber-400 uppercase">3. Key Safety Principle</span>
+            <span id="badge-rule" class="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded">Kosong</span>
           </div>
-          <div id="domain-d-slot" class="min-h-[85px] bg-slate-950/70 rounded-lg p-2.5 border border-dashed border-slate-700 flex items-center justify-center text-xs text-slate-500 text-center">
-            Select matching option
+          <div id="slot-text-rule" class="min-h-[70px] bg-slate-950/80 rounded-lg p-2.5 border border-dashed border-slate-700 text-xs text-slate-400 flex items-center justify-center text-center italic">
+            Klik di sini, lalu pilih prinsip keselamatan yang cocok di bawah
           </div>
         </div>
       </div>
 
-      <!-- Target Option Deck -->
-      <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
-        <div class="text-xs font-bold text-slate-400 mb-2 uppercase">Action Pool (Click to assign to target domain):</div>
-        <div id="matrix-option-pool" class="grid grid-cols-1 md:grid-cols-2 gap-2"></div>
+      <!-- Pool Options with Distractors -->
+      <div class="bg-slate-900/90 p-3.5 rounded-xl border border-slate-800">
+        <div class="flex justify-between items-center mb-2">
+          <span class="text-xs font-bold text-slate-300 uppercase">Pilihan Opsi (Termasuk Jebakan Soal Ujian):</span>
+          <span id="active-slot-indicator" class="text-xs font-bold text-sky-400 animate-pulse">Target Slot: Nursing Care</span>
+        </div>
+        <div id="matrix-options-pool" class="grid grid-cols-1 md:grid-cols-2 gap-2"></div>
       </div>
 
-      <button id="submit-matrix-btn" onclick="submitMatrixSet()" class="w-full mt-4 py-3 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 font-bold text-white rounded-xl shadow-lg transition active:scale-98">
-        Confirm & Validate Clinical Matrix
-      </button>
+      <!-- Control Buttons -->
+      <div class="flex gap-3 mt-4">
+        <button onclick="resetCurrentMatrixSlots()" class="px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl border border-slate-700 transition">
+          Reset Slot
+        </button>
+        <button id="submit-matrix-btn" onclick="submitMatrixSet()" class="flex-1 py-3 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 font-bold text-white rounded-xl shadow-lg transition active:scale-98">
+          Validasi Matrix (+250 / -100 Pts)
+        </button>
+      </div>
     </section>
 
     <!-- MODE 2: DUAL MATCH -->
     <section id="game-mode-speed" class="hidden glass-card rounded-2xl p-5 md:p-6 shadow-2xl">
       <div class="flex justify-between items-center mb-3">
         <span class="text-xs font-bold uppercase tracking-wider text-teal-400 bg-teal-500/10 px-2.5 py-1 rounded-full border border-teal-500/20">
-          Mode 2: Match Nursing Care & Pharmacotherapy
+          Mode 2: Pencocokan Cepat (+100 / -50 Pts)
         </span>
-        <span id="speed-case-counter" class="text-xs text-slate-400 font-mono">Case 1 / 50</span>
+        <span id="speed-case-counter" class="text-xs text-slate-400 font-mono">Kasus 1 / 50</span>
       </div>
 
       <div class="bg-slate-900/90 rounded-xl p-4 mb-4 border border-slate-800">
         <h2 id="speed-condition-title" class="text-lg font-bold text-amber-300 mb-1">Loading...</h2>
-        <div class="text-xs text-teal-300 font-semibold mb-1 uppercase tracking-wider">Clinical Presentation / Key Symptoms:</div>
+        <div class="text-xs text-teal-300 font-semibold mb-1 uppercase tracking-wider">Clinical Presentation / Gejala Utama:</div>
         <p id="speed-symptoms" class="text-xs md:text-sm text-slate-200 leading-relaxed bg-slate-950/70 p-3 rounded-lg border border-slate-800 font-mono">Loading clinical presentation...</p>
       </div>
 
@@ -168,21 +193,21 @@
     <section id="game-mode-flag" class="hidden glass-card rounded-2xl p-5 md:p-6 shadow-2xl">
       <div class="flex justify-between items-center mb-4">
         <span class="text-xs font-bold uppercase tracking-wider text-rose-400 bg-rose-500/10 px-2.5 py-1 rounded-full border border-rose-500/20">
-          Mode 3: Patient Safety & Contraindication Override
+          Mode 3: Keselamatan Pasien & Override Kontraindikasi (+150 / -75 Pts)
         </span>
-        <span id="flag-case-counter" class="text-xs text-slate-400 font-mono">Case 1 / 50</span>
+        <span id="flag-case-counter" class="text-xs text-slate-400 font-mono">Kasus 1 / 50</span>
       </div>
 
       <div class="bg-slate-900/90 rounded-xl p-4 mb-6 border border-slate-800">
         <div class="flex items-center gap-2 text-rose-400 font-bold text-sm mb-2">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-          High-Risk Clinical Scenario
+          Skenario Risiko Tinggi
         </div>
         <p id="flag-scenario" class="text-xs md:text-sm text-slate-200 leading-relaxed font-mono bg-slate-950/70 p-3 rounded-lg border border-slate-800"></p>
       </div>
 
       <div class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 mb-6 text-center">
-        <p class="text-xs text-slate-300 uppercase font-semibold">Proposed Medical / Nursing Order:</p>
+        <p class="text-xs text-slate-300 uppercase font-semibold">Usulan Instruksi / Tindakan Medis:</p>
         <p id="flag-proposed-action" class="text-base font-bold text-amber-300 mt-0.5 underline">Loading...</p>
       </div>
 
@@ -191,7 +216,19 @@
 
   </main>
 
+  <!-- Rationale Evaluation Modal -->
+  <div id="eval-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full p-5 shadow-2xl relative">
+      <h3 id="eval-title" class="text-xl font-bold mb-2">Evaluasi Klinis</h3>
+      <div id="eval-content" class="text-xs text-slate-300 space-y-3 max-h-[60vh] overflow-y-auto custom-scrollbar p-1"></div>
+      <button onclick="closeEvalModal()" class="w-full mt-4 py-3 bg-teal-600 hover:bg-teal-500 font-bold text-white rounded-xl transition">
+        Lanjut ke Kasus Berikutnya &rarr;
+      </button>
+    </div>
+  </div>
+
   <script>
+    // Audio Sound Engine
     class SoundEngine {
       constructor() { this.ctx = null; }
       init() {
@@ -201,37 +238,37 @@
         }
         if (this.ctx.state === 'suspended') this.ctx.resume();
       }
-      playCorrect() {
+      playVictory() {
         this.init();
         const now = this.ctx.currentTime;
         [523.25, 659.25, 783.99, 1046.50].forEach((f, idx) => {
           const osc = this.ctx.createOscillator();
           const gain = this.ctx.createGain();
-          osc.frequency.setValueAtTime(f, now + idx * 0.05);
-          gain.gain.setValueAtTime(0.12, now + idx * 0.05);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.05 + 0.18);
+          osc.frequency.setValueAtTime(f, now + idx * 0.06);
+          gain.gain.setValueAtTime(0.15, now + idx * 0.06);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.06 + 0.2);
           osc.connect(gain); gain.connect(this.ctx.destination);
-          osc.start(now + idx * 0.05); osc.stop(now + idx * 0.05 + 0.18);
+          osc.start(now + idx * 0.06); osc.stop(now + idx * 0.06 + 0.2);
         });
       }
-      playWrong() {
+      playFailure() {
         this.init();
         const now = this.ctx.currentTime;
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
         osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(140, now);
-        osc.frequency.linearRampToValueAtTime(80, now + 0.3);
-        gain.gain.setValueAtTime(0.2, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.linearRampToValueAtTime(70, now + 0.35);
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
         osc.connect(gain); gain.connect(this.ctx.destination);
-        osc.start(now); osc.stop(now + 0.3);
+        osc.start(now); osc.stop(now + 0.35);
       }
     }
 
     const sound = new SoundEngine();
 
-    // FULL 50 CLINICAL CASES (SCFHS & NCLEX RN HIGH YIELD)
+    // FULL 50 HIGH-YIELD CLINICAL CASES
     const cases = [
       { id: 1, cond: "Postpartum Hemorrhage (PPH)", symp: "Boggy uterus, heavy vaginal bleeding (>500 mL post-NVD), tachycardia, BP 85/50", tx: "Perform fundal bimanual massage, high-flow O2, notify provider", drug: "Oxytocin (Pitocin) 20 Units in 1L NS IV infusion", rule: "Never massage a contracted uterus; verify IV patency before infusion", safeAction: "Oxytocin 20 Units IV Infusion + Fundal Massage", unsafeAction: "Apply Forceps Traction on Cervix", isUnsafe: true },
       { id: 2, cond: "Severe Eclampsia Crisis", symp: "Pregnant 34 wks, BP 170/110, tonic-clonic seizures, hyperreflexia (+4), proteinuria +3", tx: "Maintain patent airway, side-lying position, padded side rails, suction ready", drug: "Magnesium Sulfate 4g IV loading dose over 15 min", rule: "Monitor for toxicity: Loss of deep tendon reflexes, RR <12, urine <30 mL/hr", safeAction: "Administer IV Magnesium Sulfate 4g Loading Dose", unsafeAction: "Administer Rapid Oral Ergotamine Tablet", isUnsafe: true },
@@ -286,11 +323,15 @@
     ];
 
     let currentMode = 'matrix';
-    let score = 0;
-    let timer = 45;
+    let currentScore = 0;
+    const targetScoreMax = 12500; // Total Max Possible Target
+    let timer = 60;
     let timerInterval = null;
     let currentIdx = 0;
-    let selectedSlots = { a: null, b: null, c: null, d: null };
+    
+    // Matrix Allocation State
+    let activeSlot = 'tx'; // 'tx', 'drug', 'rule'
+    let userAllocations = { tx: null, drug: null, rule: null };
 
     function shuffle(arr) {
       return [...arr].sort(() => Math.random() - 0.5);
@@ -305,10 +346,48 @@
         document.getElementById("timer-display").innerText = `⏱️ ${timer}s`;
         if (timer <= 0) {
           clearInterval(timerInterval);
-          sound.playWrong();
+          applyScoreDelta(-100, "Waktu Habis!");
+          triggerFailureEffects();
           nextCase();
         }
       }, 1000);
+    }
+
+    // Score Animation and Delta Adjustment
+    function applyScoreDelta(delta, label) {
+      currentScore += delta;
+      const scoreEl = document.getElementById("score-display");
+      const floatEl = document.getElementById("score-float");
+
+      scoreEl.innerText = currentScore;
+
+      floatEl.innerText = (delta > 0 ? `+${delta}` : `${delta}`) + ` (${label})`;
+      floatEl.className = delta > 0 
+        ? "absolute -bottom-5 right-2 text-xs font-bold font-mono text-emerald-400 opacity-100 transition-all duration-500"
+        : "absolute -bottom-5 right-2 text-xs font-bold font-mono text-rose-400 opacity-100 transition-all duration-500";
+
+      setTimeout(() => {
+        floatEl.classList.add("opacity-0");
+      }, 1500);
+    }
+
+    // Visual Celebrations / Failure Effects
+    function triggerVictoryEffects() {
+      sound.playVictory();
+      confetti({
+        particleCount: 80,
+        spread: 70,
+        origin: { y: 0.6 }
+      });
+    }
+
+    function triggerFailureEffects() {
+      sound.playFailure();
+      const body = document.getElementById("app-body");
+      body.classList.add("shake-screen", "red-flash");
+      setTimeout(() => {
+        body.classList.remove("shake-screen", "red-flash");
+      }, 500);
     }
 
     function switchMode(mode) {
@@ -336,72 +415,131 @@
       }
     }
 
-    // MODE 1: 4-DOMAIN CLINICAL MATRIX LOGIC
+    // MODE 1: THINKING MATRIX LOGIC
     function loadMatrixCase() {
-      startTimer(45);
+      startTimer(60);
       const c = cases[currentIdx];
-      document.getElementById("matrix-set-counter").innerText = `Case ${currentIdx + 1} / ${cases.length}`;
+      document.getElementById("matrix-set-counter").innerText = `Kasus ${currentIdx + 1} / ${cases.length}`;
       document.getElementById("matrix-title").innerText = c.cond;
       document.getElementById("matrix-category").innerText = "Case #" + c.id;
-      document.getElementById("matrix-scenario-text").innerText = c.symp;
+      document.getElementById("matrix-symptoms").innerText = c.symp;
 
-      selectedSlots = { a: null, b: null, c: null, d: null };
-      resetSlotUI('domain-a-slot');
-      resetSlotUI('domain-b-slot');
-      resetSlotUI('domain-c-slot');
-      resetSlotUI('domain-d-slot');
+      userAllocations = { tx: null, drug: null, rule: null };
+      selectActiveSlot('tx');
 
-      const options = shuffle([
-        { domain: 'a', text: c.symp },
-        { domain: 'b', text: c.tx },
-        { domain: 'c', text: c.drug },
-        { domain: 'd', text: c.rule }
+      const otherCases = shuffle(cases.filter(x => x.id !== c.id)).slice(0, 2);
+      
+      const poolItems = shuffle([
+        { type: 'tx', text: c.tx, isCorrect: true },
+        { type: 'tx', text: otherCases[0].tx, isCorrect: false },
+        { type: 'drug', text: c.drug, isCorrect: true },
+        { type: 'drug', text: otherCases[1].drug, isCorrect: false },
+        { type: 'rule', text: c.rule, isCorrect: true },
+        { type: 'rule', text: otherCases[0].rule, isCorrect: false }
       ]);
 
-      const pool = document.getElementById("matrix-option-pool");
-      pool.innerHTML = "";
-      options.forEach((opt) => {
+      renderMatrixPool(poolItems);
+      updateMatrixSlotUI();
+    }
+
+    function selectActiveSlot(slotType) {
+      activeSlot = slotType;
+      document.querySelectorAll("[id^='slot-container-']").forEach(el => el.classList.remove('slot-active'));
+      document.getElementById(`slot-container-${slotType}`).classList.add('slot-active');
+
+      const labels = { tx: '1. Priority Nursing Care', drug: '2. Medication & Dosing', rule: '3. Key Safety Principle' };
+      document.getElementById("active-slot-indicator").innerText = `Target Slot: ${labels[slotType]}`;
+    }
+
+    function renderMatrixPool(items) {
+      const container = document.getElementById("matrix-options-pool");
+      container.innerHTML = "";
+      items.forEach(item => {
         const btn = document.createElement("button");
-        btn.className = "w-full text-left p-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs text-slate-200 transition grid-cell";
-        btn.innerText = opt.text;
-        btn.onclick = () => assignOptionToSlot(opt, btn);
-        pool.appendChild(btn);
+        btn.className = "w-full text-left p-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs text-slate-200 transition leading-snug";
+        btn.innerText = item.text;
+        btn.onclick = () => {
+          userAllocations[activeSlot] = item.text;
+          updateMatrixSlotUI();
+        };
+        container.appendChild(btn);
       });
     }
 
-    function resetSlotUI(slotId) {
-      document.getElementById(slotId).innerHTML = "Select matching option";
-      document.getElementById(slotId).className = "min-h-[85px] bg-slate-950/70 rounded-lg p-2.5 border border-dashed border-slate-700 flex items-center justify-center text-xs text-slate-500 text-center";
+    function updateMatrixSlotUI() {
+      ['tx', 'drug', 'rule'].forEach(slot => {
+        const val = userAllocations[slot];
+        const textEl = document.getElementById(`slot-text-${slot}`);
+        const badgeEl = document.getElementById(`badge-${slot}`);
+        const containerEl = document.getElementById(`slot-container-${slot}`);
+
+        if (val) {
+          textEl.innerText = val;
+          textEl.className = "min-h-[70px] bg-slate-900 rounded-lg p-2.5 border border-teal-500/50 text-xs text-teal-200 font-semibold flex items-center justify-center text-center";
+          badgeEl.innerText = "Terisi";
+          badgeEl.className = "text-[10px] bg-teal-500/20 text-teal-300 font-bold px-1.5 py-0.5 rounded border border-teal-500/30";
+          containerEl.classList.add('slot-filled');
+        } else {
+          const defaultPlaceholders = {
+            tx: "Klik di sini, lalu pilih tindakan keperawatan yang cocok di bawah",
+            drug: "Klik di sini, lalu pilih obat & dosis yang cocok di bawah",
+            rule: "Klik di sini, lalu pilih prinsip keselamatan yang cocok di bawah"
+          };
+          textEl.innerText = defaultPlaceholders[slot];
+          textEl.className = "min-h-[70px] bg-slate-950/80 rounded-lg p-2.5 border border-dashed border-slate-700 text-xs text-slate-400 flex items-center justify-center text-center italic";
+          badgeEl.innerText = "Kosong";
+          badgeEl.className = "text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded";
+          containerEl.classList.remove('slot-filled');
+        }
+      });
     }
 
-    function assignOptionToSlot(opt, btnElement) {
-      const slotMap = { a: 'domain-a-slot', b: 'domain-b-slot', c: 'domain-c-slot', d: 'domain-d-slot' };
-      const targetSlotId = slotMap[opt.domain];
-      const slotEl = document.getElementById(targetSlotId);
-
-      selectedSlots[opt.domain] = opt.text;
-      slotEl.innerHTML = `<span class="text-xs font-semibold text-slate-100">${opt.text}</span>`;
-      slotEl.className = "min-h-[85px] bg-teal-500/10 rounded-lg p-2.5 border border-teal-500/40 flex items-center justify-center text-xs text-teal-200 text-center font-medium shadow";
-
-      btnElement.classList.add("opacity-40", "pointer-events-none");
+    function resetCurrentMatrixSlots() {
+      userAllocations = { tx: null, drug: null, rule: null };
+      updateMatrixSlotUI();
     }
 
     function submitMatrixSet() {
       const c = cases[currentIdx];
-      const isComplete = selectedSlots.a && selectedSlots.b && selectedSlots.c && selectedSlots.d;
+      const isTxCorrect = userAllocations.tx === c.tx;
+      const isDrugCorrect = userAllocations.drug === c.drug;
+      const isRuleCorrect = userAllocations.rule === c.rule;
 
-      if (isComplete &&
-          selectedSlots.a === c.symp &&
-          selectedSlots.b === c.tx &&
-          selectedSlots.c === c.drug &&
-          selectedSlots.d === c.rule) {
-        score += 200;
-        sound.playCorrect();
+      const isAllCorrect = isTxCorrect && isDrugCorrect && isRuleCorrect;
+
+      if (isAllCorrect) {
+        applyScoreDelta(250, "Matrix Tepat!");
+        triggerVictoryEffects();
       } else {
-        sound.playWrong();
+        applyScoreDelta(-100, "Matrix Salah!");
+        triggerFailureEffects();
       }
 
-      document.getElementById("score-display").innerText = `Score: ${score}`;
+      showEvalModal(isAllCorrect, c);
+    }
+
+    function showEvalModal(isCorrect, c) {
+      const modal = document.getElementById("eval-modal");
+      const titleEl = document.getElementById("eval-title");
+      const contentEl = document.getElementById("eval-content");
+
+      titleEl.innerText = isCorrect ? "🎉 Matrix Tepat (+250 Pts)" : "💔 Kesalahan Alokasi Klinis (-100 Pts)";
+      titleEl.className = isCorrect ? "text-xl font-black text-teal-400 mb-2" : "text-xl font-black text-rose-400 mb-2";
+
+      contentEl.innerHTML = `
+        <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-2">
+          <div><strong class="text-sky-400">1. Nursing Care:</strong> ${c.tx}</div>
+          <div><strong class="text-emerald-400">2. Pharmacotherapy:</strong> ${c.drug}</div>
+          <div><strong class="text-amber-400">3. Safety Principle:</strong> ${c.rule}</div>
+        </div>
+        <p class="text-xs text-slate-300 leading-relaxed"><strong class="text-slate-100">Rasional Klinis:</strong> Penanganan ${c.cond} memerlukan kepatuhan dosis ketat, pengawasan rute pemberian, dan reposisi non-farmakologis untuk mencegah komplikasi fatal.</p>
+      `;
+
+      modal.classList.remove("hidden");
+    }
+
+    function closeEvalModal() {
+      document.getElementById("eval-modal").classList.add("hidden");
       nextCase();
     }
 
@@ -409,7 +547,7 @@
     function loadSpeedCase() {
       startTimer(30);
       const c = cases[currentIdx];
-      document.getElementById("speed-case-counter").innerText = `Case ${currentIdx + 1} / ${cases.length}`;
+      document.getElementById("speed-case-counter").innerText = `Kasus ${currentIdx + 1} / ${cases.length}`;
       document.getElementById("speed-condition-title").innerText = c.cond;
       document.getElementById("speed-symptoms").innerText = c.symp;
 
@@ -419,14 +557,14 @@
       const txOptions = shuffle([c.tx, randomDistractors[0].tx, randomDistractors[1].tx]);
       const drugOptions = shuffle([c.drug, randomDistractors[0].drug, randomDistractors[1].drug]);
 
-      renderMatchButtons("speed-tx-options", txOptions, c.tx);
-      renderMatchButtons("speed-drug-options", drugOptions, c.drug);
+      renderMatchButtons("speed-tx-options", txOptions, 'tx');
+      renderMatchButtons("speed-drug-options", drugOptions, 'drug');
     }
 
     let selectedSpeedTx = null;
     let selectedSpeedDrug = null;
 
-    function renderMatchButtons(containerId, options, targetCorrect) {
+    function renderMatchButtons(containerId, options, type) {
       const container = document.getElementById(containerId);
       container.innerHTML = "";
       options.forEach(opt => {
@@ -434,8 +572,8 @@
         btn.className = "w-full text-left p-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-xs font-semibold text-slate-200 transition";
         btn.innerText = opt;
         btn.onclick = () => {
-          if (containerId === "speed-tx-options") selectedSpeedTx = opt;
-          if (containerId === "speed-drug-options") selectedSpeedDrug = opt;
+          if (type === 'tx') selectedSpeedTx = opt;
+          if (type === 'drug') selectedSpeedDrug = opt;
 
           Array.from(container.children).forEach(b => b.classList.remove("border-teal-400", "bg-teal-500/20"));
           btn.classList.add("border-teal-400", "bg-teal-500/20");
@@ -450,14 +588,14 @@
       const c = cases[currentIdx];
       if (selectedSpeedTx && selectedSpeedDrug) {
         if (selectedSpeedTx === c.tx && selectedSpeedDrug === c.drug) {
-          score += 100;
-          sound.playCorrect();
+          applyScoreDelta(100, "Cocok!");
+          triggerVictoryEffects();
         } else {
-          sound.playWrong();
+          applyScoreDelta(-50, "Salah!");
+          triggerFailureEffects();
         }
         selectedSpeedTx = null;
         selectedSpeedDrug = null;
-        document.getElementById("score-display").innerText = `Score: ${score}`;
         nextCase();
       }
     }
@@ -466,8 +604,8 @@
     function loadFlagCase() {
       startTimer(25);
       const c = cases[currentIdx];
-      document.getElementById("flag-case-counter").innerText = `Case ${currentIdx + 1} / ${cases.length}`;
-      document.getElementById("flag-scenario").innerText = `Diagnosis: ${c.cond}\nSymptoms: ${c.symp}\nStandard Intervention: ${c.tx}`;
+      document.getElementById("flag-case-counter").innerText = `Kasus ${currentIdx + 1} / ${cases.length}`;
+      document.getElementById("flag-scenario").innerText = `Diagnosis: ${c.cond}\nGejala: ${c.symp}\nTindakan Standar: ${c.tx}`;
 
       const isUnsafeProposal = Math.random() < 0.5;
       const proposedAction = isUnsafeProposal ? c.unsafeAction : c.safeAction;
@@ -479,12 +617,12 @@
 
       const safeBtn = document.createElement("button");
       safeBtn.className = "p-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl font-bold text-slate-200 transition text-sm flex items-center justify-center gap-2";
-      safeBtn.innerText = "✅ Safe & Recommended Order";
+      safeBtn.innerText = "✅ Aman & Direkomendasikan";
       safeBtn.onclick = () => checkFlagAnswer(false, isUnsafeProposal);
 
       const unsafeBtn = document.createElement("button");
       unsafeBtn.className = "p-4 bg-rose-600/30 hover:bg-rose-600/50 border border-rose-500 text-rose-200 rounded-xl font-bold transition text-sm flex items-center justify-center gap-2";
-      unsafeBtn.innerText = "🛑 CONTRAINDICATED (Stop & Report)";
+      unsafeBtn.innerText = "🛑 KONTRAINDIKASI (Hentikan)";
       unsafeBtn.onclick = () => checkFlagAnswer(true, isUnsafeProposal);
 
       const buttons = shuffle([safeBtn, unsafeBtn]);
@@ -493,12 +631,12 @@
 
     function checkFlagAnswer(userSaidUnsafe, actualIsUnsafe) {
       if (userSaidUnsafe === actualIsUnsafe) {
-        score += 150;
-        sound.playCorrect();
+        applyScoreDelta(150, "Keputusan Tepat!");
+        triggerVictoryEffects();
       } else {
-        sound.playWrong();
+        applyScoreDelta(-75, "Keputusan Berbahaya!");
+        triggerFailureEffects();
       }
-      document.getElementById("score-display").innerText = `Score: ${score}`;
       nextCase();
     }
 
